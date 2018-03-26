@@ -1,0 +1,120 @@
+version: '2'
+services:
+  postgresql1:
+    image: postgres:9.3
+    hostname: db1
+    env_file: env1
+    volumes:
+      - ./dockerfiles/pgdata1:/var/lib/postgresql/data/pgdata
+#      - ./dockerfiles/init.sql:/docker-entrypoint-initdb.d/init1.sql
+    ports:
+      - "5432:5432"
+
+  redis1:
+      image: redis:3
+      hostname: redis1
+      env_file: env1
+      ports:
+      - "6379:6379"
+
+  rabbit1:
+      hostname: rabbit1
+      image: rabbitmq:3.6.0
+      env_file: env1
+      ports:
+        - "5672:5672"
+#        - "15672:15672"
+
+  worker1:
+    env_file: env1
+    build: ./src/orders_project
+    volumes:
+      - ./src/orders_project:/opt/celery
+    working_dir: /opt/celery
+    links:
+      - "rabbit1"
+      - "redis1"
+      - "postgresql1:db1"
+      - "service1:service1"
+      - "service2:service2"
+
+    command: bash -c "sleep 10 && celery -A tasks.celery worker --loglevel=info"
+
+  service1:
+    hostname: service1
+    build: ./src/orders_project
+    env_file: env1
+    working_dir: /opt/service1
+    command: bash -c "sleep 5 && python manage.py runserver 0.0.0.0:8080"
+    volumes:
+      - ./src/orders_project:/opt/service1
+#      - ./dockerfiles/id_rsa.pub:/root/.ssh/authorized_keys
+#      - ./dockerfiles/images:/opt/service1/app/images
+#      - ./root/.pycharm_helpers/:/root/.pycharm_helpers/
+    links:
+      - "rabbit1"
+      - "redis1"
+      - "postgresql1:db1"
+    ports:
+      - "8001:8080"
+
+
+  postgresql2:
+    image: postgres:9.3
+    hostname: db2
+    env_file: env2
+    volumes:
+      - ./dockerfiles/pgdata2:/var/lib/postgresql/data/pgdata
+#      - ./dockerfiles/init.sql:/docker-entrypoint-initdb.d/init1.sql
+#    ports:
+#      - "5432:5432"
+
+  redis2:
+      image: redis:3
+      hostname: redis2
+      env_file: env2
+#      ports:
+#      - "6379:6379"
+
+  rabbit2:
+      hostname: rabbit2
+      image: rabbitmq:3.6.0
+      env_file: env2
+#      ports:
+#        - "5672:5672"
+#        - "15672:15672"
+
+  worker2:
+    env_file: env2
+    build: ./src/orders_project
+    volumes:
+      - ./src/orders_project:/opt/celery
+    working_dir: /opt/celery
+    links:
+      - "rabbit2"
+      - "redis2"
+      - "postgresql2:db2"
+      - "service2:service2"
+      - "service1:service1"
+
+    command: bash -c "sleep 10 && celery -A tasks.celery worker --loglevel=info"
+
+  service2:
+    hostname: service2
+    build: ./src/orders_project
+    env_file: env2
+    working_dir: /opt/service2
+    command: bash -c "sleep 5 && python manage.py runserver 0.0.0.0:8080"
+    volumes:
+      - ./src/orders_project:/opt/service2
+#      - ./dockerfiles/id_rsa.pub:/root/.ssh/authorized_keys
+#      - ./dockerfiles/images:/opt/service1/app/images
+#      - ./root/.pycharm_helpers/:/root/.pycharm_helpers/
+    links:
+      - "rabbit2"
+      - "redis2"
+      - "postgresql2:db2"
+    ports:
+      - "8002:8080"
+      - "8080:8080"
+
